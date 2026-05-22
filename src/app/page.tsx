@@ -29,6 +29,14 @@ export default function Home() {
         <span className="rounded-full border border-violet-200 bg-violet-50 px-4 py-1.5 text-sm font-medium text-violet-600">
           In development
         </span>
+
+        {/* Connect bank */}
+        <a
+          href="/api/auth/truelayer"
+          className="mt-2 rounded-xl bg-violet-500 px-6 py-3 text-sm font-semibold text-white shadow-md shadow-violet-200 transition hover:bg-violet-600 active:scale-95"
+        >
+          Connect bank account
+        </a>
       </div>
     </div>
   );
