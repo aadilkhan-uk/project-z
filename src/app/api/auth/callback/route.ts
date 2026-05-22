@@ -48,7 +48,8 @@ export async function GET(request: NextRequest) {
     await tokenResponse.json();
 
   // Store tokens in secure HTTP-only cookies
-  const response = NextResponse.redirect(new URL("/dashboard", request.url));
+  const next = searchParams.get("next") ?? "/dashboard";
+  const response = NextResponse.redirect(new URL(next, request.url));
 
   const accessTokenExpiry = new Date(Date.now() + expires_in * 1000);
   // Refresh token is valid for 90 days
