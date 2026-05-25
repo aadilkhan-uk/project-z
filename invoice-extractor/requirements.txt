@@ -1,0 +1,3 @@
+openai>=1.30.0
+google-cloud-documentai>=2.26.0
+python-dotenv>=1.0.0
