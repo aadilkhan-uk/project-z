@@ -42,3 +42,8 @@ next-env.d.ts
 
 # google settings
 settings.json
+
+# invoice extractor
+invoice-extractor/invoices/
+invoice-extractor/output/
+invoice-extractor/extractors/__pycache__/
