@@ -50,7 +50,7 @@ Extract ALL of the following fields from the invoice (use null if a field is not
   "notes": "<string>"
 }
 
-Return ONLY valid JSON — no markdown fences, no extra commentary.
+Return ONLY the JSON object — no extra fields or commentary.
 """.strip()
 
 
@@ -82,8 +82,9 @@ def extract(invoice_path: Path, model: str = "gpt-4o") -> dict:
             }
         ],
         temperature=0,
+        response_format={"type": "json_object"},
     )
-
+    
     raw = response.choices[0].message.content.strip()
     return json.loads(raw)
 
