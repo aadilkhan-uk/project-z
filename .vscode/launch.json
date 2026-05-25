@@ -6,6 +6,15 @@
       "type": "node-terminal",
       "request": "launch",
       "command": "npm run dev -- --inspect"
+    },
+    {
+      "name": "Debug openai_extractor",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "extractors.openai_extractor",
+      "cwd": "${workspaceFolder}/invoice-extractor",
+      "env": {"OPENAI_API_KEY": "${env:OPENAI_API_KEY}"},
+      "args": []
     }
   ]
 }
