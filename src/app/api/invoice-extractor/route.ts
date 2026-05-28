@@ -86,58 +86,50 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const client = new OpenAI({apiKey});
-  const model = (formData.get("model") as string) || "gpt-4o";
-
-  try {
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-
-    let content: OpenAI.Chat.ChatCompletionContentPart[];
-
-    if (mimeType === "application/pdf") {
-      const uploaded = await client.files.create({
-        file: new File([buffer], file.name, {type: mimeType}),
-        purpose: "assistants",
-      });
-
-      content = [
-        {type: "text", text: EXTRACTION_PROMPT},
-        {
-          type: "file",
-          file: {file_id: uploaded.id},
-        } as OpenAI.Chat.ChatCompletionContentPart,
-      ];
-    } else {
-      const b64 = buffer.toString("base64");
-      content = [
-        {type: "text", text: EXTRACTION_PROMPT},
-        {
-          type: "image_url",
-          image_url: {
-            url: `data:${mimeType};base64,${b64}`,
-            detail: "high",
-          },
-        },
-      ];
-    }
-
-    const response = await client.chat.completions.create({
-      model,
-      messages: [{role: "user", content}],
-      temperature: 0,
-      response_format: {type: "json_object"},
-    });
-
-    const raw = response.choices[0].message.content?.trim() ?? "{}";
-    const extracted = JSON.parse(raw);
-
-    return NextResponse.json(extracted);
-  } catch (error) {
-    console.error("Invoice extraction error:", error);
-    return NextResponse.json(
-      {error: "Failed to extract invoice data."},
-      {status: 500},
-    );
-  }
+  // TODO: Remove stub and re-enable OpenAI extraction
+  return NextResponse.json({
+    invoice_number: "INV-2024-00421",
+    invoice_date: "2024-11-15",
+    due_date: "2024-12-15",
+    vendor: {
+      name: "Acme Supplies Ltd.",
+      address: "123 Commerce Street, London, EC1A 1BB, UK",
+      email: "billing@acmesupplies.co.uk",
+      phone: "+44 20 7946 0958",
+      tax_id: "GB123456789",
+    },
+    bill_to: {
+      name: "Project Z Inc.",
+      address: "456 Innovation Ave, San Francisco, CA 94107, USA",
+      email: "accounts@projectz.io",
+    },
+    line_items: [
+      {
+        description: "Cloud Infrastructure Services (Nov 2024)",
+        quantity: 1,
+        unit_price: 3200.0,
+        total: 3200.0,
+      },
+      {
+        description: "Software Licenses (x10 seats)",
+        quantity: 10,
+        unit_price: 49.99,
+        total: 499.9,
+      },
+      {
+        description: "Professional Support Hours",
+        quantity: 8,
+        unit_price: 175.0,
+        total: 1400.0,
+      },
+    ],
+    subtotal: 5099.9,
+    tax_rate: 20.0,
+    tax_amount: 1019.98,
+    discount: 0,
+    total_amount: 6119.88,
+    currency: "GBP",
+    payment_terms: "Net 30",
+    notes: "Please reference invoice number INV-2024-00421 when making payment.",
+  });
 }
