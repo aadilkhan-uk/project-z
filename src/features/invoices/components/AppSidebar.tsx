@@ -1,3 +1,4 @@
+import { cookies } from "next/headers";
 import Link from "next/link";
 
 import { cn } from "@/components/ui/cn";
@@ -10,12 +11,13 @@ interface NavItem {
 }
 
 /**
- * Global app sidebar — pure server component.
- *
- * Renders nav entries for each top-level section. The active item is
- * determined by the consuming page so this stays stateless and server-safe.
+ * Global app sidebar — async server component so it can read cookies for
+ * conditional Xero connection state.
  */
-export function AppSidebar({ activePath }: { activePath: string }) {
+export async function AppSidebar({ activePath }: { activePath: string }) {
+  const cookieStore = await cookies();
+  const xeroConnected = cookieStore.has("xero_access_token");
+
   const items: NavItem[] = [
     {
       label: "Transactions",
@@ -28,6 +30,12 @@ export function AppSidebar({ activePath }: { activePath: string }) {
       href: "/invoices",
       icon: <InvoicesIcon />,
       active: activePath === "/invoices",
+    },
+    {
+      label: xeroConnected ? "Xero" : "Connect\u00a0Xero",
+      href: "/xero",
+      icon: <XeroIcon />,
+      active: activePath === "/xero",
     },
   ];
 
@@ -62,7 +70,7 @@ export function AppSidebar({ activePath }: { activePath: string }) {
             >
               {item.icon}
             </span>
-            <span className="leading-none">{item.label}</span>
+            <span className="text-center leading-none">{item.label}</span>
           </Link>
         ))}
       </nav>
@@ -106,6 +114,24 @@ function InvoicesIcon() {
       <polyline points="14 2 14 8 20 8" />
       <line x1="9" y1="13" x2="15" y2="13" />
       <line x1="9" y1="17" x2="13" y2="17" />
+    </svg>
+  );
+}
+
+function XeroIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden
+    >
+      <circle cx="12" cy="12" r="10" />
+      <path d="m8 8 8 8M16 8l-8 8" />
     </svg>
   );
 }
