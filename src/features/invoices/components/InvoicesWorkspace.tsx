@@ -55,6 +55,8 @@ export function InvoicesWorkspace() {
       uploadedAt: new Date(),
       status: "processing",
       fields: [],
+      fileUrl: URL.createObjectURL(file),
+      fileMimeType: file.type,
     };
     setInvoices((prev) => [newInvoice, ...prev]);
     setSelectedId(id);

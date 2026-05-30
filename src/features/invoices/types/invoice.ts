@@ -16,4 +16,6 @@ export interface Invoice {
   uploadedAt: Date;
   status: InvoiceStatus;
   fields: InvoiceField[];
+  fileUrl?: string;
+  fileMimeType?: string;
 }

@@ -65,7 +65,12 @@ export function InvoicePreview({ invoice, onUpload }: InvoicePreviewProps) {
       </header>
 
       {/* Body */}
-      <div className="flex flex-1 items-center justify-center overflow-auto p-6">
+      <div
+        className={cn(
+          "flex flex-1 overflow-hidden",
+          !invoice?.fileUrl && "items-center justify-center p-6",
+        )}
+      >
         {!invoice ? (
           <DropZone
             dragging={dragging}
@@ -73,6 +78,11 @@ export function InvoicePreview({ invoice, onUpload }: InvoicePreviewProps) {
             onDragLeave={() => setDragging(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
+          />
+        ) : invoice.fileUrl ? (
+          <FileViewer
+            invoice={invoice}
+            onRetry={() => fileInputRef.current?.click()}
           />
         ) : invoice.status === "processing" ? (
           <ProcessingState name={invoice.name} />
@@ -215,6 +225,101 @@ function ErrorState({ name, onRetry }: { name: string; onRetry: () => void }) {
       >
         Upload again
       </button>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  File viewer (actual PDF / image)                                          */
+/* -------------------------------------------------------------------------- */
+
+function FileViewer({
+  invoice,
+  onRetry,
+}: {
+  invoice: Invoice;
+  onRetry: () => void;
+}) {
+  const isPdf = invoice.fileMimeType === "application/pdf";
+
+  return (
+    <div className="relative flex h-full w-full flex-col">
+      {/* Processing banner */}
+      {invoice.status === "processing" && (
+        <div className="flex shrink-0 items-center gap-2.5 border-b border-amber-100 bg-amber-50 px-5 py-2.5">
+          <svg
+            className="h-4 w-4 animate-spin text-amber-400"
+            viewBox="0 0 24 24"
+            fill="none"
+            aria-hidden
+          >
+            <circle
+              className="opacity-25"
+              cx="12"
+              cy="12"
+              r="10"
+              stroke="currentColor"
+              strokeWidth="3"
+            />
+            <path
+              className="opacity-75"
+              fill="currentColor"
+              d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+            />
+          </svg>
+          <span className="text-xs font-medium text-amber-700">
+            Extracting invoice data… this usually takes a few seconds.
+          </span>
+        </div>
+      )}
+
+      {/* Error banner */}
+      {invoice.status === "error" && (
+        <div className="flex shrink-0 items-center justify-between border-b border-red-100 bg-red-50 px-5 py-2.5">
+          <div className="flex items-center gap-2.5">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-4 w-4 text-red-400"
+              aria-hidden
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="12" />
+              <line x1="12" y1="16" x2="12.01" y2="16" />
+            </svg>
+            <span className="text-xs font-medium text-red-700">
+              Could not extract data from this file.
+            </span>
+          </div>
+          <button
+            onClick={onRetry}
+            className="rounded-md border border-red-200 bg-white px-2.5 py-1 text-xs font-medium text-red-600 shadow-sm transition hover:bg-red-50"
+          >
+            Upload again
+          </button>
+        </div>
+      )}
+
+      {/* PDF viewer */}
+      {isPdf ? (
+        <iframe
+          src={invoice.fileUrl}
+          title={invoice.name}
+          className="flex-1 border-0"
+        />
+      ) : (
+        <div className="flex flex-1 items-center justify-center overflow-auto p-6">
+          <img
+            src={invoice.fileUrl}
+            alt={invoice.name}
+            className="max-h-full max-w-full rounded-xl object-contain shadow-md"
+          />
+        </div>
+      )}
     </div>
   );
 }
