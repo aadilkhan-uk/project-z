@@ -8,6 +8,9 @@ import { InvoiceEditPanel } from "./InvoiceEditPanel";
 import { InvoiceList } from "./InvoiceList";
 import { InvoicePreview } from "./InvoicePreview";
 
+const INITIAL_INVOICES: Invoice[] =
+  process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === "true" ? MOCK_INVOICES : [];
+
 /**
  * Client boundary for the invoices explorer.
  *
@@ -16,7 +19,7 @@ import { InvoicePreview } from "./InvoicePreview";
  * the right-hand form. Everything above this in the tree stays a server component.
  */
 export function InvoicesWorkspace() {
-  const [invoices, setInvoices] = useState<Invoice[]>(MOCK_INVOICES);
+  const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
   const [rightCollapsed, setRightCollapsed] = useState(false);
@@ -72,27 +75,29 @@ export function InvoicesWorkspace() {
       })
       .then((data) => {
         const vendor = data.vendor?.name ?? data.vendor ?? "Unknown Vendor";
-        const fields: Invoice["fields"] = [
-          { key: "vendor_name", label: "Vendor", value: vendor, type: "text" },
-          { key: "invoice_number", label: "Invoice Number", value: data.invoice_number ?? "", type: "text" },
-          { key: "invoice_date", label: "Invoice Date", value: data.invoice_date ?? "", type: "date" },
-          { key: "due_date", label: "Due Date", value: data.due_date ?? "", type: "date" },
-          { key: "vendor_address", label: "Vendor Address", value: data.vendor?.address ?? "", type: "text" },
-          { key: "vendor_email", label: "Vendor Email", value: data.vendor?.email ?? "", type: "text" },
-          { key: "vendor_phone", label: "Vendor Phone", value: data.vendor?.phone ?? "", type: "text" },
-          { key: "vendor_tax_id", label: "Vendor Tax ID", value: data.vendor?.tax_id ?? "", type: "text" },
-          { key: "bill_to_name", label: "Bill To", value: data.bill_to?.name ?? "", type: "text" },
-          { key: "bill_to_address", label: "Bill To Address", value: data.bill_to?.address ?? "", type: "text" },
-          { key: "bill_to_email", label: "Bill To Email", value: data.bill_to?.email ?? "", type: "text" },
-          { key: "currency", label: "Currency", value: data.currency ?? "", type: "text" },
-          { key: "payment_terms", label: "Payment Terms", value: data.payment_terms ?? "", type: "text" },
-          { key: "subtotal", label: "Subtotal", value: String(data.subtotal ?? ""), type: "currency" },
-          { key: "tax_rate", label: "Tax Rate (%)", value: String(data.tax_rate ?? ""), type: "number" },
-          { key: "tax_amount", label: "Tax Amount", value: String(data.tax_amount ?? ""), type: "currency" },
-          { key: "discount", label: "Discount", value: String(data.discount ?? ""), type: "currency" },
-          { key: "total_amount", label: "Total Amount", value: String(data.total_amount ?? ""), type: "currency" },
-          { key: "notes", label: "Notes", value: data.notes ?? "", type: "text" },
-        ].filter((f) => f.value !== "" && f.value !== "null" && f.value !== "undefined");
+        const fields: Invoice["fields"] = (
+          [
+            { key: "vendor_name", label: "Vendor", value: vendor, type: "text" },
+            { key: "invoice_number", label: "Invoice Number", value: data.invoice_number ?? "", type: "text" },
+            { key: "invoice_date", label: "Invoice Date", value: data.invoice_date ?? "", type: "date" },
+            { key: "due_date", label: "Due Date", value: data.due_date ?? "", type: "date" },
+            { key: "vendor_address", label: "Vendor Address", value: data.vendor?.address ?? "", type: "text" },
+            { key: "vendor_email", label: "Vendor Email", value: data.vendor?.email ?? "", type: "text" },
+            { key: "vendor_phone", label: "Vendor Phone", value: data.vendor?.phone ?? "", type: "text" },
+            { key: "vendor_tax_id", label: "Vendor Tax ID", value: data.vendor?.tax_id ?? "", type: "text" },
+            { key: "bill_to_name", label: "Bill To", value: data.bill_to?.name ?? "", type: "text" },
+            { key: "bill_to_address", label: "Bill To Address", value: data.bill_to?.address ?? "", type: "text" },
+            { key: "bill_to_email", label: "Bill To Email", value: data.bill_to?.email ?? "", type: "text" },
+            { key: "currency", label: "Currency", value: data.currency ?? "", type: "text" },
+            { key: "payment_terms", label: "Payment Terms", value: data.payment_terms ?? "", type: "text" },
+            { key: "subtotal", label: "Subtotal", value: String(data.subtotal ?? ""), type: "currency" },
+            { key: "tax_rate", label: "Tax Rate (%)", value: String(data.tax_rate ?? ""), type: "number" },
+            { key: "tax_amount", label: "Tax Amount", value: String(data.tax_amount ?? ""), type: "currency" },
+            { key: "discount", label: "Discount", value: String(data.discount ?? ""), type: "currency" },
+            { key: "total_amount", label: "Total Amount", value: String(data.total_amount ?? ""), type: "currency" },
+            { key: "notes", label: "Notes", value: data.notes ?? "", type: "text" },
+          ] as Invoice["fields"]
+        ).filter((f) => f.value !== "" && f.value !== "null" && f.value !== "undefined");
 
         setInvoices((prev) =>
           prev.map((inv) =>
