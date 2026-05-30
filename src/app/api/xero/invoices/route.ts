@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getXeroAccessToken } from "@/lib/xero";
 
 const XERO_API = "https://api.xero.com";
 
@@ -40,20 +41,27 @@ async function getXeroTenantId(accessToken: string): Promise<string> {
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("xero_access_token")?.value;
+  const tokenResult = await getXeroAccessToken(cookieStore);
 
-  if (!accessToken) {
+  if (!tokenResult) {
     return NextResponse.json(
       { error: "Not connected to Xero. Please connect from the Xero tab." },
       { status: 401 }
     );
   }
 
+  const { accessToken, applyRefreshedCookies } = tokenResult;
+
+  function withCookies(res: NextResponse) {
+    applyRefreshedCookies?.(res);
+    return res;
+  }
+
   let body: PublishInvoiceBody;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return withCookies(NextResponse.json({ error: "Invalid request body." }, { status: 400 }));
   }
 
   const {
@@ -71,9 +79,11 @@ export async function POST(request: NextRequest) {
   } = body;
 
   if (!contactId || !date || !lineDescription || !accountCode) {
-    return NextResponse.json(
-      { error: "Missing required fields: contactId, date, lineDescription, accountCode." },
-      { status: 400 }
+    return withCookies(
+      NextResponse.json(
+        { error: "Missing required fields: contactId, date, lineDescription, accountCode." },
+        { status: 400 }
+      )
     );
   }
 
@@ -82,7 +92,7 @@ export async function POST(request: NextRequest) {
     tenantId = await getXeroTenantId(accessToken);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to get Xero tenant.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return withCookies(NextResponse.json({ error: message }, { status: 502 }));
   }
 
   const lineAmount = parseFloat((quantity * unitAmount).toFixed(2));
@@ -130,13 +140,15 @@ export async function POST(request: NextRequest) {
       data?.message ??
       data?.Detail ??
       "Xero rejected the invoice.";
-    return NextResponse.json({ error: message }, { status: xeroRes.status });
+    return withCookies(NextResponse.json({ error: message }, { status: xeroRes.status }));
   }
 
   const created = data?.Invoices?.[0];
-  return NextResponse.json({
-    invoiceId: created?.InvoiceID,
-    invoiceNumber: created?.InvoiceNumber,
-    status: created?.Status,
-  });
+  return withCookies(
+    NextResponse.json({
+      invoiceId: created?.InvoiceID,
+      invoiceNumber: created?.InvoiceNumber,
+      status: created?.Status,
+    })
+  );
 }

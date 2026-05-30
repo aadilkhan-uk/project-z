@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { getXeroAccessToken } from "@/lib/xero";
 
 const XERO_API = "https://api.xero.com";
 
@@ -26,13 +27,17 @@ async function getXeroTenantId(accessToken: string): Promise<string> {
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("xero_access_token")?.value;
+  const tokenResult = await getXeroAccessToken(cookieStore);
 
-  if (!accessToken) {
-    return NextResponse.json(
-      { error: "Not connected to Xero." },
-      { status: 401 }
-    );
+  if (!tokenResult) {
+    return NextResponse.json({ error: "Not connected to Xero." }, { status: 401 });
+  }
+
+  const { accessToken, applyRefreshedCookies } = tokenResult;
+
+  function withCookies(res: NextResponse) {
+    applyRefreshedCookies?.(res);
+    return res;
   }
 
   const search = request.nextUrl.searchParams.get("search") ?? "";
@@ -42,14 +47,13 @@ export async function GET(request: NextRequest) {
     tenantId = await getXeroTenantId(accessToken);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to get Xero tenant.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return withCookies(NextResponse.json({ error: message }, { status: 502 }));
   }
 
   const url = new URL(`${XERO_API}/api.xro/2.0/Contacts`);
   if (search.trim()) {
     url.searchParams.set("searchTerm", search.trim());
   }
-  // Limit results to keep the dropdown snappy
   url.searchParams.set("includeArchived", "false");
 
   const xeroRes = await fetch(url.toString(), {
@@ -63,9 +67,11 @@ export async function GET(request: NextRequest) {
   if (!xeroRes.ok) {
     const text = await xeroRes.text();
     console.error("Xero contacts fetch failed:", text);
-    return NextResponse.json(
-      { error: "Failed to fetch contacts from Xero." },
-      { status: xeroRes.status }
+    return withCookies(
+      NextResponse.json(
+        { error: "Failed to fetch contacts from Xero." },
+        { status: xeroRes.status }
+      )
     );
   }
 
@@ -76,7 +82,7 @@ export async function GET(request: NextRequest) {
       Name: c.Name,
     }));
 
-  return NextResponse.json({ contacts });
+  return withCookies(NextResponse.json({ contacts }));
 }
 
 /* -------------------------------------------------------------------------- */
@@ -95,21 +101,28 @@ interface CreateContactBody {
 
 export async function POST(request: NextRequest) {
   const cookieStore = await cookies();
-  const accessToken = cookieStore.get("xero_access_token")?.value;
+  const tokenResult = await getXeroAccessToken(cookieStore);
 
-  if (!accessToken) {
+  if (!tokenResult) {
     return NextResponse.json({ error: "Not connected to Xero." }, { status: 401 });
+  }
+
+  const { accessToken, applyRefreshedCookies } = tokenResult;
+
+  function withCookies(res: NextResponse) {
+    applyRefreshedCookies?.(res);
+    return res;
   }
 
   let body: CreateContactBody;
   try {
     body = await request.json();
   } catch {
-    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+    return withCookies(NextResponse.json({ error: "Invalid request body." }, { status: 400 }));
   }
 
   if (!body.name?.trim()) {
-    return NextResponse.json({ error: "Contact name is required." }, { status: 400 });
+    return withCookies(NextResponse.json({ error: "Contact name is required." }, { status: 400 }));
   }
 
   let tenantId: string;
@@ -117,7 +130,7 @@ export async function POST(request: NextRequest) {
     tenantId = await getXeroTenantId(accessToken);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Failed to get Xero tenant.";
-    return NextResponse.json({ error: message }, { status: 502 });
+    return withCookies(NextResponse.json({ error: message }, { status: 502 }));
   }
 
   const contactPayload: Record<string, unknown> = { Name: body.name.trim() };
@@ -145,14 +158,16 @@ export async function POST(request: NextRequest) {
     console.error("Xero contact creation failed:", data);
     const message =
       data?.Message ?? data?.message ?? data?.Detail ?? "Xero rejected the contact.";
-    return NextResponse.json({ error: message }, { status: xeroRes.status });
+    return withCookies(NextResponse.json({ error: message }, { status: xeroRes.status }));
   }
 
   const created = data?.Contacts?.[0];
-  return NextResponse.json({
-    contact: {
-      ContactID: created?.ContactID as string,
-      Name: created?.Name as string,
-    },
-  });
+  return withCookies(
+    NextResponse.json({
+      contact: {
+        ContactID: created?.ContactID as string,
+        Name: created?.Name as string,
+      },
+    })
+  );
 }
