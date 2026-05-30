@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import { cn } from "@/components/ui/cn";
 import type { Invoice } from "../types/invoice";
+import { AccountAutocomplete } from "./AccountAutocomplete";
 import { ContactAutocomplete } from "./ContactAutocomplete";
 
 const XERO_STATUSES = ["DRAFT", "SUBMITTED", "AUTHORISED"] as const;
@@ -316,10 +317,7 @@ export function XeroPublishForm({
             value={form.lineDescription}
             onChange={set("lineDescription")}
           />
-          <XeroTextInput
-            id="xero-account-code"
-            label="Account Code"
-            placeholder="e.g. 200"
+          <AccountAutocomplete
             value={form.accountCode}
             onChange={set("accountCode")}
           />

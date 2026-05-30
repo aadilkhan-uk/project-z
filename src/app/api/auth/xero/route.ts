@@ -20,7 +20,7 @@ export async function GET() {
     response_type: "code",
     client_id: clientId,
     redirect_uri: redirectUri,
-    scope: "openid profile email accounting.invoices accounting.contacts offline_access",
+    scope: "openid profile email accounting.invoices accounting.contacts accounting.settings.read offline_access",
     state,
   });
 
