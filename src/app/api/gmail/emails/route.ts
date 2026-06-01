@@ -46,7 +46,7 @@ export async function GET() {
 
   // Fetch message IDs from the last 30 days that match our broad query.
   // The query casts a wide net — we narrow down with our own heuristics below.
-  const query = "newer_than:30d has:attachment OR subject:invoice OR subject:bill OR subject:receipt";
+  const query = "newer_than:1d has:attachment OR subject:invoice OR subject:bill OR subject:receipt";
   const listUrl = `${GMAIL_API}/messages?maxResults=50&q=${encodeURIComponent(query)}`;
 
   const listRes = await fetch(listUrl, {
