@@ -17,6 +17,7 @@ interface NavItem {
 export async function AppSidebar({ activePath }: { activePath: string }) {
   const cookieStore = await cookies();
   const xeroConnected = cookieStore.has("xero_access_token");
+  const gmailConnected = cookieStore.has("gmail_access_token");
 
   const items: NavItem[] = [
     {
@@ -36,6 +37,12 @@ export async function AppSidebar({ activePath }: { activePath: string }) {
       href: "/xero",
       icon: <XeroIcon />,
       active: activePath === "/xero",
+    },
+    {
+      label: gmailConnected ? "Mailbox" : "Connect\u00a0Mailbox",
+      href: "/mailbox",
+      icon: <MailboxIcon />,
+      active: activePath === "/mailbox",
     },
   ];
 
@@ -132,6 +139,24 @@ function XeroIcon() {
     >
       <circle cx="12" cy="12" r="10" />
       <path d="m8 8 8 8M16 8l-8 8" />
+    </svg>
+  );
+}
+
+function MailboxIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-5 w-5"
+      aria-hidden
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m2 7 10 7 10-7" />
     </svg>
   );
 }
