@@ -44,8 +44,19 @@ export async function GET() {
     return res;
   }
 
-  // Fetch message IDs from the last 30 days that match our broad query.
-  // The query casts a wide net — we narrow down with our own heuristics below.
+  const result = await fetchInvoiceEmails(accessToken);
+
+  if ("error" in result) {
+    return withCookies(NextResponse.json({ error: result.error }, { status: result.status }));
+  }
+
+  return withCookies(NextResponse.json({ emails: result.emails }));
+}
+
+async function fetchInvoiceEmails(
+  accessToken: string
+): Promise<{ emails: GmailEmail[] } | { error: string; status: number }> {
+  // Casts a wide net via the Gmail query; we narrow down with our own heuristics below.
   const query = "newer_than:1d has:attachment OR subject:invoice OR subject:bill OR subject:receipt";
   const listUrl = `${GMAIL_API}/messages?maxResults=50&q=${encodeURIComponent(query)}`;
 
@@ -56,16 +67,14 @@ export async function GET() {
   if (!listRes.ok) {
     const text = await listRes.text();
     console.error("Gmail messages list failed:", text);
-    return withCookies(
-      NextResponse.json({ error: "Failed to fetch emails from Gmail." }, { status: listRes.status })
-    );
+    return { error: "Failed to fetch emails from Gmail.", status: listRes.status };
   }
 
   const listData = await listRes.json();
   const messageStubs: { id: string }[] = listData.messages ?? [];
 
   if (messageStubs.length === 0) {
-    return withCookies(NextResponse.json({ emails: [] }));
+    return { emails: [] };
   }
 
   // Fetch each message with format=full so the complete MIME part tree is
@@ -95,7 +104,6 @@ export async function GET() {
     const from = headers.find((h: { name: string }) => h.name === "From")?.value ?? "";
     const date = headers.find((h: { name: string }) => h.name === "Date")?.value ?? "";
 
-    // Collect all attachment parts (PDF or images only).
     const attachments = collectAttachments(msg.payload);
     const hasPdfAttachment = attachments.some(
       (a) => a.mimeType === "application/pdf" || a.filename.toLowerCase().endsWith(".pdf")
@@ -123,7 +131,7 @@ export async function GET() {
     });
   }
 
-  return withCookies(NextResponse.json({ emails }));
+  return { emails };
 }
 
 interface MessagePart {
