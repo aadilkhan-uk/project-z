@@ -58,7 +58,7 @@ export async function GET() {
     );
   }
 
-  const emails = await enrichEmailsWithBodyExtraction(result.emails);
+  const emails = await enrichEmailsWithBodyExtraction(result.emails, accessToken);
 
   return withCookies(NextResponse.json({emails}));
 }
@@ -215,19 +215,35 @@ Do not include any text outside the JSON object.`.trim();
 /**
  * Takes the list of flagged emails from fetchInvoiceEmails and attempts to
  * extract structured invoice data from each email body via an LLM.
+ * If the body yields nothing and the email has attachments, each attachment
+ * is tried in order until one produces invoice data.
  * Runs all extractions concurrently.
  */
 async function enrichEmailsWithBodyExtraction(
   emails: GmailEmail[],
+  accessToken: string,
 ): Promise<GmailEmail[]> {
   const results = await Promise.allSettled(
     emails.map(async (email) => {
-      const extraction = await extractInvoiceFromEmailBody(email.body);
-      return {
-        ...email,
-        extractedInvoice:
-          extraction === "No Payment Details" ? null : extraction,
-      };
+      const bodyExtraction = await extractInvoiceFromEmailBody(email.body);
+
+      if (bodyExtraction !== "No Payment Details") {
+        return {...email, extractedInvoice: bodyExtraction};
+      }
+
+      // Body had no invoice data — try attachments in order.
+      for (const attachment of email.attachments) {
+        const attachmentExtraction = await extractInvoiceFromAttachment(
+          email.id,
+          attachment,
+          accessToken,
+        );
+        if (attachmentExtraction !== "No Payment Details") {
+          return {...email, extractedInvoice: attachmentExtraction};
+        }
+      }
+
+      return {...email, extractedInvoice: null};
     }),
   );
 
@@ -276,6 +292,110 @@ async function extractInvoiceFromEmailBody(
     return invoice as ExtractedInvoice;
   } catch (err) {
     console.error("Email invoice extraction failed:", err);
+    return "No Payment Details";
+  }
+}
+
+const ATTACHMENT_SUPPORTED_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/webp",
+  "image/tiff",
+]);
+
+/**
+ * Downloads an attachment from Gmail and uses an LLM to assess whether it
+ * contains invoice data. Returns the structured invoice on success, or
+ * "No Payment Details" if nothing relevant is found or the type is unsupported.
+ */
+async function extractInvoiceFromAttachment(
+  messageId: string,
+  attachment: {attachmentId: string; filename: string; mimeType: string},
+  accessToken: string,
+): Promise<ExtractedInvoice | "No Payment Details"> {
+  if (!ATTACHMENT_SUPPORTED_MIME_TYPES.has(attachment.mimeType)) {
+    return "No Payment Details";
+  }
+
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn("OPENAI_API_KEY not set — skipping attachment extraction.");
+    return "No Payment Details";
+  }
+
+  // Fetch the raw attachment bytes from Gmail.
+  const attachmentRes = await fetch(
+    `${GMAIL_API}/messages/${messageId}/attachments/${attachment.attachmentId}`,
+    {headers: {Authorization: `Bearer ${accessToken}`}},
+  );
+
+  if (!attachmentRes.ok) {
+    console.error(
+      `Failed to fetch attachment ${attachment.filename}: ${attachmentRes.status}`,
+    );
+    return "No Payment Details";
+  }
+
+  const attachmentData = await attachmentRes.json();
+  // Gmail returns base64url-encoded data.
+  const base64 = (attachmentData.data as string)
+    .replace(/-/g, "+")
+    .replace(/_/g, "/");
+  const buffer = Buffer.from(base64, "base64");
+
+  const client = new OpenAI({apiKey});
+
+  try {
+    let content: OpenAI.Chat.ChatCompletionContentPart[];
+
+    if (attachment.mimeType === "application/pdf") {
+      const uploaded = await client.files.create({
+        file: new File([buffer], attachment.filename, {
+          type: "application/pdf",
+        }),
+        purpose: "assistants",
+      });
+
+      content = [
+        {type: "text", text: EMAIL_BODY_EXTRACTION_PROMPT},
+        {
+          type: "file",
+          file: {file_id: uploaded.id},
+        } as OpenAI.Chat.ChatCompletionContentPart,
+      ];
+    } else {
+      const b64 = buffer.toString("base64");
+      content = [
+        {type: "text", text: EMAIL_BODY_EXTRACTION_PROMPT},
+        {
+          type: "image_url",
+          image_url: {
+            url: `data:${attachment.mimeType};base64,${b64}`,
+            detail: "high",
+          },
+        },
+      ];
+    }
+
+    const response = await client.chat.completions.create({
+      model: "gpt-4o",
+      messages: [{role: "user", content}],
+      temperature: 0,
+      response_format: {type: "json_object"},
+    });
+
+    const parsed = JSON.parse(
+      response.choices[0].message.content?.trim() ?? "{}",
+    ) as {found: boolean} & Partial<ExtractedInvoice>;
+
+    if (!parsed.found) return "No Payment Details";
+
+    const {found: _, ...invoice} = parsed;
+    return invoice as ExtractedInvoice;
+  } catch (err) {
+    console.error(`Attachment invoice extraction failed (${attachment.filename}):`, err);
     return "No Payment Details";
   }
 }
