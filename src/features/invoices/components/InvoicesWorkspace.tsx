@@ -178,6 +178,8 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
 
   const [syncActive, setSyncActive] = useState(false);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [bannerCount, setBannerCount] = useState(0);
+  const [newInvoiceIds, setNewInvoiceIds] = useState<Set<string>>(new Set());
 
   const pollGmailEmails = useCallback(() => {
     fetch("/api/gmail/emails")
@@ -200,6 +202,12 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
 
         if (newInvoices.length > 0) {
           setInvoices((prev) => [...newInvoices, ...prev]);
+          setBannerCount(newInvoices.length);
+          setNewInvoiceIds((prev) => {
+            const next = new Set(prev);
+            newInvoices.forEach((inv) => next.add(inv.id));
+            return next;
+          });
         }
       })
       .catch(() => {
@@ -222,6 +230,23 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
     const id = setInterval(pollGmailEmails, POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [syncActive, pollGmailEmails]);
+
+  useEffect(() => {
+    if (bannerCount === 0) return;
+    function dismiss() {
+      setBannerCount(0);
+    }
+    document.addEventListener("mousedown", dismiss);
+    return () => document.removeEventListener("mousedown", dismiss);
+  }, [bannerCount]);
+
+  const handleClearNewId = useCallback((id: string) => {
+    setNewInvoiceIds((prev) => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
+  }, []);
 
   const handleFieldChange = useCallback((key: string, value: string) => {
     setEditValues((prev) => ({ ...prev, [key]: value }));
@@ -252,7 +277,31 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
   }, [selectedInvoice]);
 
   return (
-    <div className="flex h-full min-h-0 flex-1 overflow-hidden">
+    <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
+      {bannerCount > 0 && (
+        <div className="pointer-events-none absolute bottom-4 left-1/2 z-50 -translate-x-1/2">
+          <div className="flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 shadow-md shadow-sky-100">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3.5 w-3.5 shrink-0 text-sky-500"
+              aria-hidden
+            >
+              <rect x="2" y="4" width="20" height="16" rx="2" />
+              <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+            </svg>
+            <span className="text-sm font-medium text-sky-700">
+              {bannerCount === 1
+                ? "1 new invoice picked up from mail"
+                : `${bannerCount} new invoices picked up from mail`}
+            </span>
+          </div>
+        </div>
+      )}
       <InvoiceList
         invoices={invoices}
         selectedId={selectedId}
@@ -260,9 +309,11 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
         gmailConnected={gmailConnected}
         syncActive={syncActive}
         lastSyncedAt={lastSyncedAt}
+        newInvoiceIds={newInvoiceIds}
         onSelect={handleSelect}
         onUpload={handleUpload}
         onToggleSync={handleToggleSync}
+        onClearNewId={handleClearNewId}
         onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
       />
 

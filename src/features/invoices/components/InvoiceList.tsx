@@ -13,9 +13,11 @@ interface InvoiceListProps {
   gmailConnected: boolean;
   syncActive: boolean;
   lastSyncedAt: Date | null;
+  newInvoiceIds: Set<string>;
   onSelect: (id: string) => void;
   onUpload: (file: File) => void;
   onToggleSync: () => void;
+  onClearNewId: (id: string) => void;
   onToggleCollapse: () => void;
 }
 
@@ -26,9 +28,11 @@ export function InvoiceList({
   gmailConnected,
   syncActive,
   lastSyncedAt,
+  newInvoiceIds,
   onSelect,
   onUpload,
   onToggleSync,
+  onClearNewId,
   onToggleCollapse,
 }: InvoiceListProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -183,10 +187,15 @@ export function InvoiceList({
 
       {/* Invoice items */}
       <ul className="flex-1 overflow-y-auto px-2 pb-2">
-        {invoices.map((invoice) => (
+        {invoices.map((invoice) => {
+          const isNew = newInvoiceIds.has(invoice.id);
+          return (
           <li key={invoice.id}>
             <button
-              onClick={() => onSelect(invoice.id)}
+              onClick={() => {
+                onSelect(invoice.id);
+                if (isNew) onClearNewId(invoice.id);
+              }}
               aria-current={selectedId === invoice.id ? "true" : undefined}
               className={cn(
                 "group flex w-full items-start gap-3 rounded-xl px-2 py-3 text-left transition",
@@ -194,9 +203,11 @@ export function InvoiceList({
                   ? invoice.source === "email"
                     ? "bg-sky-50"
                     : "bg-violet-50"
-                  : invoice.source === "email"
-                    ? "hover:bg-sky-50/60"
-                    : "hover:bg-zinc-50"
+                  : isNew
+                    ? "bg-sky-50/70 ring-1 ring-inset ring-sky-200"
+                    : invoice.source === "email"
+                      ? "hover:bg-sky-50/60"
+                      : "hover:bg-zinc-50"
               )}
             >
               <div className="mt-0.5 shrink-0">
@@ -237,7 +248,8 @@ export function InvoiceList({
               )}
             </button>
           </li>
-        ))}
+          );
+        })}
 
         {invoices.length === 0 && !collapsed && (
           <li className="px-2 py-8 text-center text-xs text-zinc-400">
