@@ -205,10 +205,14 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
 
   const [syncActive, setSyncActive] = useState(false);
 
-  const handleStartSync = useCallback(() => {
-    if (!gmailConnected || syncActive) return;
-    setSyncActive(true);
-    pollGmailEmails();
+  const handleToggleSync = useCallback(() => {
+    if (!gmailConnected) return;
+    if (syncActive) {
+      setSyncActive(false);
+    } else {
+      setSyncActive(true);
+      pollGmailEmails();
+    }
   }, [gmailConnected, syncActive, pollGmailEmails]);
 
   useEffect(() => {
@@ -255,7 +259,7 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
         syncActive={syncActive}
         onSelect={handleSelect}
         onUpload={handleUpload}
-        onStartSync={handleStartSync}
+        onToggleSync={handleToggleSync}
         onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
       />
 

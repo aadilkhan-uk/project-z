@@ -14,7 +14,7 @@ interface InvoiceListProps {
   syncActive: boolean;
   onSelect: (id: string) => void;
   onUpload: (file: File) => void;
-  onStartSync: () => void;
+  onToggleSync: () => void;
   onToggleCollapse: () => void;
 }
 
@@ -26,7 +26,7 @@ export function InvoiceList({
   syncActive,
   onSelect,
   onUpload,
-  onStartSync,
+  onToggleSync,
   onToggleCollapse,
 }: InvoiceListProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -99,20 +99,41 @@ export function InvoiceList({
       {!collapsed && (
         <div className="shrink-0 px-3 pb-3">
           {gmailConnected ? (
-            syncActive ? (
-              <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-600">
-                <SyncIcon spinning />
-                Mailbox syncing…
-              </div>
-            ) : (
-              <button
-                onClick={onStartSync}
-                className="flex w-full items-center justify-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-100 active:scale-[0.98]"
+            <div
+              className={cn(
+                "flex w-full items-center justify-between gap-2 rounded-lg border px-3 py-2 transition",
+                syncActive
+                  ? "border-sky-100 bg-sky-50"
+                  : "border-zinc-200 bg-white"
+              )}
+            >
+              <div
+                className={cn(
+                  "flex items-center gap-2 text-sm font-medium",
+                  syncActive ? "text-sky-600" : "text-zinc-600"
+                )}
               >
-                <SyncIcon />
-                Start Mailbox Sync
+                <SyncIcon spinning={syncActive} />
+                {syncActive ? "Syncing mailbox…" : "Mailbox sync"}
+              </div>
+              <button
+                role="switch"
+                aria-checked={syncActive}
+                aria-label="Toggle mailbox sync"
+                onClick={onToggleSync}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sky-400 focus-visible:ring-offset-1",
+                  syncActive ? "bg-sky-500" : "bg-zinc-300"
+                )}
+              >
+                <span
+                  className={cn(
+                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition duration-200",
+                    syncActive ? "translate-x-4" : "translate-x-0"
+                  )}
+                />
               </button>
-            )
+            </div>
           ) : (
             <Link
               href="/mailbox"
@@ -129,22 +150,18 @@ export function InvoiceList({
       {collapsed && (
         <div className="flex shrink-0 justify-center pb-2">
           {gmailConnected ? (
-            syncActive ? (
-              <div
-                aria-label="Mailbox syncing"
-                className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-500"
-              >
-                <SyncIcon spinning />
-              </div>
-            ) : (
-              <button
-                onClick={onStartSync}
-                aria-label="Start mailbox sync"
-                className="flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-600 transition hover:bg-sky-100"
-              >
-                <SyncIcon />
-              </button>
-            )
+            <button
+              onClick={onToggleSync}
+              aria-label={syncActive ? "Stop mailbox sync" : "Start mailbox sync"}
+              className={cn(
+                "flex h-8 w-8 items-center justify-center rounded-lg transition",
+                syncActive
+                  ? "bg-sky-500 text-white"
+                  : "border border-sky-200 bg-sky-50 text-sky-600 hover:bg-sky-100"
+              )}
+            >
+              <SyncIcon spinning={syncActive} />
+            </button>
           ) : (
             <Link
               href="/mailbox"
