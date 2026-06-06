@@ -203,13 +203,19 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
       });
   }, []);
 
-  useEffect(() => {
-    if (!gmailConnected) return;
+  const [syncActive, setSyncActive] = useState(false);
 
+  const handleStartSync = useCallback(() => {
+    if (!gmailConnected || syncActive) return;
+    setSyncActive(true);
     pollGmailEmails();
+  }, [gmailConnected, syncActive, pollGmailEmails]);
+
+  useEffect(() => {
+    if (!syncActive) return;
     const id = setInterval(pollGmailEmails, POLL_INTERVAL_MS);
     return () => clearInterval(id);
-  }, [gmailConnected, pollGmailEmails]);
+  }, [syncActive, pollGmailEmails]);
 
   const handleFieldChange = useCallback((key: string, value: string) => {
     setEditValues((prev) => ({ ...prev, [key]: value }));
@@ -245,8 +251,11 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
         invoices={invoices}
         selectedId={selectedId}
         collapsed={leftCollapsed}
+        gmailConnected={gmailConnected}
+        syncActive={syncActive}
         onSelect={handleSelect}
         onUpload={handleUpload}
+        onStartSync={handleStartSync}
         onToggleCollapse={() => setLeftCollapsed((prev) => !prev)}
       />
 

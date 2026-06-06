@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRef } from "react";
 
 import { cn } from "@/components/ui/cn";
@@ -9,8 +10,11 @@ interface InvoiceListProps {
   invoices: Invoice[];
   selectedId: string | null;
   collapsed: boolean;
+  gmailConnected: boolean;
+  syncActive: boolean;
   onSelect: (id: string) => void;
   onUpload: (file: File) => void;
+  onStartSync: () => void;
   onToggleCollapse: () => void;
 }
 
@@ -18,8 +22,11 @@ export function InvoiceList({
   invoices,
   selectedId,
   collapsed,
+  gmailConnected,
+  syncActive,
   onSelect,
   onUpload,
+  onStartSync,
   onToggleCollapse,
 }: InvoiceListProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -68,7 +75,7 @@ export function InvoiceList({
       </div>
 
       {/* Upload button */}
-      <div className={cn("shrink-0 p-3", collapsed && "flex justify-center")}>
+      <div className={cn("shrink-0 p-3 pb-2", collapsed && "flex justify-center")}>
         {collapsed ? (
           <button
             onClick={() => fileInputRef.current?.click()}
@@ -87,6 +94,68 @@ export function InvoiceList({
           </button>
         )}
       </div>
+
+      {/* Mailbox sync */}
+      {!collapsed && (
+        <div className="shrink-0 px-3 pb-3">
+          {gmailConnected ? (
+            syncActive ? (
+              <div className="flex w-full items-center justify-center gap-2 rounded-lg border border-sky-100 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-600">
+                <SyncIcon spinning />
+                Mailbox syncing…
+              </div>
+            ) : (
+              <button
+                onClick={onStartSync}
+                className="flex w-full items-center justify-center gap-2 rounded-lg border border-sky-200 bg-sky-50 px-3 py-2 text-sm font-medium text-sky-700 transition hover:bg-sky-100 active:scale-[0.98]"
+              >
+                <SyncIcon />
+                Start Mailbox Sync
+              </button>
+            )
+          ) : (
+            <Link
+              href="/mailbox"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-medium text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-700"
+            >
+              <MailIcon />
+              Connect Gmail to sync
+            </Link>
+          )}
+        </div>
+      )}
+
+      {/* Collapsed mailbox sync icon */}
+      {collapsed && (
+        <div className="flex shrink-0 justify-center pb-2">
+          {gmailConnected ? (
+            syncActive ? (
+              <div
+                aria-label="Mailbox syncing"
+                className="flex h-8 w-8 items-center justify-center rounded-lg bg-sky-50 text-sky-500"
+              >
+                <SyncIcon spinning />
+              </div>
+            ) : (
+              <button
+                onClick={onStartSync}
+                aria-label="Start mailbox sync"
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-sky-200 bg-sky-50 text-sky-600 transition hover:bg-sky-100"
+              >
+                <SyncIcon />
+              </button>
+            )
+          ) : (
+            <Link
+              href="/mailbox"
+              aria-label="Connect Gmail"
+              className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 bg-zinc-50 text-zinc-400 transition hover:bg-zinc-100"
+            >
+              <MailIcon />
+            </Link>
+          )}
+        </div>
+      )}
 
       {/* Invoice items */}
       <ul className="flex-1 overflow-y-auto px-2 pb-2">
@@ -280,6 +349,23 @@ function MailIcon() {
     >
       <rect x="2" y="4" width="20" height="16" rx="2" />
       <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  );
+}
+
+function SyncIcon({ spinning }: { spinning?: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={cn("h-3.5 w-3.5 shrink-0", spinning && "animate-spin")}
+      aria-hidden
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
     </svg>
   );
 }
