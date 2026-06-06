@@ -128,7 +128,14 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
         return res.json();
       })
       .then((data) => {
-        const vendor = data.vendor?.name ?? data.vendor ?? "Unknown Vendor";
+        const rawVendor =
+          typeof data.vendor === "object" && data.vendor !== null
+            ? data.vendor.name
+            : data.vendor;
+        const vendor =
+          typeof rawVendor === "string" && rawVendor.trim()
+            ? rawVendor
+            : "Unknown Vendor";
         const fields: Invoice["fields"] = (
           [
             { key: "vendor_name", label: "Vendor", value: vendor, type: "text" },

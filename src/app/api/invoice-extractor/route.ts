@@ -1,5 +1,8 @@
+import mammoth from "mammoth";
 import OpenAI from "openai";
 import {NextRequest, NextResponse} from "next/server";
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 const SUPPORTED_TYPES: Record<string, string> = {
   "application/pdf": "pdf",
@@ -7,6 +10,7 @@ const SUPPORTED_TYPES: Record<string, string> = {
   "image/jpeg": "jpeg",
   "image/gif": "gif",
   "image/webp": "webp",
+  [DOCX_MIME]: "docx",
 };
 
 const EXTRACTION_PROMPT = `You are an invoice data extraction assistant.
@@ -80,7 +84,7 @@ export async function POST(request: NextRequest) {
   if (!SUPPORTED_TYPES[mimeType]) {
     return NextResponse.json(
       {
-        error: `Unsupported file type: ${mimeType}. Use PDF, PNG, JPG, GIF, or WEBP.`,
+        error: `Unsupported file type: ${mimeType}. Use PDF, PNG, JPG, GIF, WEBP, or DOCX.`,
       },
       {status: 415},
     );
@@ -127,7 +131,15 @@ export async function POST(request: NextRequest) {
 
     let content: OpenAI.Chat.ChatCompletionContentPart[];
 
-    if (mimeType === "application/pdf") {
+    if (mimeType === DOCX_MIME) {
+      const { value: docText } = await mammoth.extractRawText({ buffer });
+      content = [
+        {
+          type: "text",
+          text: `${EXTRACTION_PROMPT}\n\nDocument text:\n${docText}`,
+        },
+      ];
+    } else if (mimeType === "application/pdf") {
       const uploaded = await client.files.create({
         file: new File([buffer], file.name, {type: mimeType}),
         purpose: "assistants",

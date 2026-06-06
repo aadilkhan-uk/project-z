@@ -43,7 +43,7 @@ export function InvoiceList({
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf,.png,.jpg,.jpeg,.webp"
+        accept=".pdf,.png,.jpg,.jpeg,.webp,.docx"
         className="sr-only"
         onChange={handleFileChange}
       />

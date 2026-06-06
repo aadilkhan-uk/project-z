@@ -1,3 +1,4 @@
+import mammoth from "mammoth";
 import {cookies} from "next/headers";
 import {NextResponse} from "next/server";
 import OpenAI from "openai";
@@ -305,6 +306,8 @@ async function extractInvoiceFromEmailBody(
   }
 }
 
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
 const ATTACHMENT_SUPPORTED_MIME_TYPES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -312,6 +315,7 @@ const ATTACHMENT_SUPPORTED_MIME_TYPES = new Set([
   "image/png",
   "image/webp",
   "image/tiff",
+  DOCX_MIME,
 ]);
 
 /**
@@ -359,7 +363,15 @@ async function extractInvoiceFromAttachment(
   try {
     let content: OpenAI.Chat.ChatCompletionContentPart[];
 
-    if (attachment.mimeType === "application/pdf") {
+    if (attachment.mimeType === DOCX_MIME) {
+      const { value: docText } = await mammoth.extractRawText({ buffer });
+      content = [
+        {
+          type: "text",
+          text: `${EMAIL_BODY_EXTRACTION_PROMPT}\n\nDocument text:\n${docText}`,
+        },
+      ];
+    } else if (attachment.mimeType === "application/pdf") {
       const uploaded = await client.files.create({
         file: new File([buffer], attachment.filename, {
           type: "application/pdf",
@@ -471,6 +483,7 @@ function collectAttachments(
     "image/png",
     "image/webp",
     "image/tiff",
+    DOCX_MIME,
   ]);
 
   const filename = part.filename ?? "";

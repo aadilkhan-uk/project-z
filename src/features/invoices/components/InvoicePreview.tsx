@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { cn } from "@/components/ui/cn";
 import type { Invoice } from "../types/invoice";
@@ -37,7 +37,7 @@ export function InvoicePreview({ invoice, onUpload }: InvoicePreviewProps) {
       <input
         ref={fileInputRef}
         type="file"
-        accept=".pdf,.png,.jpg,.jpeg,.webp"
+        accept=".pdf,.png,.jpg,.jpeg,.webp,.docx"
         className="sr-only"
         onChange={handleFileChange}
       />
@@ -144,7 +144,7 @@ function DropZone({
           Drop your invoice here
         </p>
         <p className="mt-1 text-sm text-zinc-400">
-          or click to browse · PDF, PNG, JPG supported
+          or click to browse · PDF, DOCX, PNG, JPG supported
         </p>
       </div>
       <span className="inline-flex items-center rounded-lg bg-violet-500 px-4 py-2 text-sm font-medium text-white shadow-sm shadow-violet-200 transition hover:bg-violet-600">
@@ -250,6 +250,7 @@ function FileViewer({
   onRetry: () => void;
 }) {
   const isPdf = invoice.fileMimeType === "application/pdf";
+  const isDocx = invoice.fileMimeType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
   return (
     <div className="relative flex h-full w-full flex-col">
@@ -313,13 +314,15 @@ function FileViewer({
         </div>
       )}
 
-      {/* PDF viewer */}
+      {/* File viewer */}
       {isPdf ? (
         <iframe
           src={invoice.fileUrl}
           title={invoice.name}
           className="flex-1 border-0"
         />
+      ) : isDocx ? (
+        <DocxPreview fileUrl={invoice.fileUrl!} name={invoice.name} />
       ) : (
         <div className="flex flex-1 items-center justify-center overflow-auto p-6">
           <img
@@ -329,6 +332,100 @@ function FileViewer({
           />
         </div>
       )}
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Word document (.docx) preview                                              */
+/* -------------------------------------------------------------------------- */
+
+function DocxPreview({ fileUrl, name }: { fileUrl: string; name: string }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">(
+    "loading"
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    setStatus("loading");
+
+    (async () => {
+      try {
+        const [{ renderAsync }, blob] = await Promise.all([
+          import("docx-preview"),
+          fetch(fileUrl).then((res) => res.blob()),
+        ]);
+        if (cancelled || !containerRef.current) return;
+        containerRef.current.innerHTML = "";
+        await renderAsync(blob, containerRef.current, undefined, {
+          className: "docx",
+          inWrapper: true,
+          ignoreLastRenderedPageBreak: true,
+        });
+        if (!cancelled) setStatus("ready");
+      } catch {
+        if (!cancelled) setStatus("error");
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fileUrl]);
+
+  if (status === "error") {
+    return (
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-50 text-blue-500">
+            <WordDocIcon />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-800">Word document</p>
+            <p className="mt-1 max-w-xs rounded-md bg-zinc-100 px-3 py-1.5 font-mono text-xs text-zinc-600">
+              {name}
+            </p>
+            <p className="mt-2 text-xs text-zinc-400">
+              We couldn&apos;t render a preview, but invoice data has been
+              extracted from this document.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex flex-1 justify-center overflow-auto bg-zinc-200/50 p-6">
+      {status === "loading" && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-3 text-center">
+            <svg
+              className="h-7 w-7 animate-spin text-zinc-300"
+              viewBox="0 0 24 24"
+              fill="none"
+              aria-hidden
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="3"
+              />
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+              />
+            </svg>
+            <p className="text-xs text-zinc-400">Rendering document preview…</p>
+          </div>
+        </div>
+      )}
+      <div ref={containerRef} className="docx-preview-host" />
     </div>
   );
 }
@@ -607,6 +704,26 @@ function UploadIcon() {
       <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
       <polyline points="17 8 12 3 7 8" />
       <line x1="12" y1="3" x2="12" y2="15" />
+    </svg>
+  );
+}
+
+function WordDocIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-7 w-7"
+      aria-hidden
+    >
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+      <polyline points="14 2 14 8 20 8" />
+      <line x1="9" y1="13" x2="15" y2="13" />
+      <line x1="9" y1="17" x2="13" y2="17" />
     </svg>
   );
 }

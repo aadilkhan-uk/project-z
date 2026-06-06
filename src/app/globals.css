@@ -33,3 +33,14 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* docx-preview rendered pages */
+.docx-preview-host .docx-wrapper {
+  background: transparent;
+  padding: 0;
+}
+.docx-preview-host .docx-wrapper > section.docx {
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 24px rgba(15, 15, 30, 0.12);
+  border-radius: 2px;
+}
