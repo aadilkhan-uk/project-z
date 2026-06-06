@@ -33,6 +33,10 @@ export interface GmailEmail {
   body: string;
   /** Structured invoice data extracted from the email body, or null if none found. */
   extractedInvoice?: ExtractedInvoice | null;
+  /** Which part of the email the invoice data was extracted from. */
+  extractionSource?: "body" | "attachment";
+  /** Filename of the attachment used for extraction, when extractionSource is "attachment". */
+  extractionAttachmentName?: string;
 }
 
 export async function GET() {
@@ -67,8 +71,8 @@ async function fetchInvoiceEmails(
   accessToken: string,
 ): Promise<{emails: GmailEmail[]} | {error: string; status: number}> {
   // Casts a wide net via the Gmail query; we narrow down with our own heuristics below.
-  const query =
-    "newer_than:1d has:attachment OR subject:invoice OR subject:bill OR subject:receipt";
+  const fifteenMinutesAgo = Math.floor((Date.now() - 15 * 60 * 1000) / 1000);
+  const query = `after:${fifteenMinutesAgo} has:attachment OR subject:invoice OR subject:bill OR subject:receipt`;
   const listUrl = `${GMAIL_API}/messages?maxResults=50&q=${encodeURIComponent(query)}`;
 
   const listRes = await fetch(listUrl, {
@@ -228,7 +232,7 @@ async function enrichEmailsWithBodyExtraction(
       const bodyExtraction = await extractInvoiceFromEmailBody(email.body);
 
       if (bodyExtraction !== "No Payment Details") {
-        return {...email, extractedInvoice: bodyExtraction};
+        return {...email, extractedInvoice: bodyExtraction, extractionSource: "body" as const};
       }
 
       // Body had no invoice data — try attachments in order.
@@ -239,7 +243,12 @@ async function enrichEmailsWithBodyExtraction(
           accessToken,
         );
         if (attachmentExtraction !== "No Payment Details") {
-          return {...email, extractedInvoice: attachmentExtraction};
+          return {
+            ...email,
+            extractedInvoice: attachmentExtraction,
+            extractionSource: "attachment" as const,
+            extractionAttachmentName: attachment.filename,
+          };
         }
       }
 

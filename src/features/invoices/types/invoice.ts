@@ -56,4 +56,10 @@ export interface Invoice {
   fields: InvoiceField[];
   fileUrl?: string;
   fileMimeType?: string;
+  /** "upload" for manually uploaded files, "email" for mailbox-sourced invoices. */
+  source?: "upload" | "email";
+  /** Plain-text email body, set when source is "email" and extraction came from the body. */
+  emailBody?: string;
+  /** Attachment filename, set when source is "email" and extraction came from an attachment. */
+  emailAttachmentName?: string;
 }

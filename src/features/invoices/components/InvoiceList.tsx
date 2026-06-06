@@ -98,12 +98,20 @@ export function InvoiceList({
               className={cn(
                 "group flex w-full items-start gap-3 rounded-xl px-2 py-3 text-left transition",
                 selectedId === invoice.id
-                  ? "bg-violet-50"
-                  : "hover:bg-zinc-50"
+                  ? invoice.source === "email"
+                    ? "bg-sky-50"
+                    : "bg-violet-50"
+                  : invoice.source === "email"
+                    ? "hover:bg-sky-50/60"
+                    : "hover:bg-zinc-50"
               )}
             >
               <div className="mt-0.5 shrink-0">
-                <FileIcon status={invoice.status} />
+                {invoice.source === "email" ? (
+                  <MailIcon />
+                ) : (
+                  <FileIcon status={invoice.status} />
+                )}
               </div>
 
               {!collapsed && (
@@ -112,7 +120,9 @@ export function InvoiceList({
                     className={cn(
                       "truncate text-sm font-medium leading-tight",
                       selectedId === invoice.id
-                        ? "text-violet-700"
+                        ? invoice.source === "email"
+                          ? "text-sky-700"
+                          : "text-violet-700"
                         : "text-zinc-800"
                     )}
                   >
@@ -125,7 +135,10 @@ export function InvoiceList({
                     <span className="text-[10px] text-zinc-400">
                       {formatUploadDate(invoice.uploadedAt)}
                     </span>
-                    <StatusBadge status={invoice.status} />
+                    <div className="flex items-center gap-1">
+                      {invoice.source === "email" && <MailboxBadge />}
+                      <StatusBadge status={invoice.status} />
+                    </div>
                   </div>
                 </div>
               )}
@@ -228,6 +241,45 @@ function CollapseIcon({ collapsed }: { collapsed: boolean }) {
       ) : (
         <polyline points="15 18 9 12 15 6" />
       )}
+    </svg>
+  );
+}
+
+function MailboxBadge() {
+  return (
+    <span className="inline-flex items-center gap-0.5 rounded-md bg-sky-50 px-1.5 py-0.5 text-[10px] font-medium text-sky-600">
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="h-2.5 w-2.5"
+        aria-hidden
+      >
+        <rect x="2" y="4" width="20" height="16" rx="2" />
+        <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+      </svg>
+      Mailbox
+    </span>
+  );
+}
+
+function MailIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="h-4 w-4 shrink-0 text-sky-500"
+      aria-hidden
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
     </svg>
   );
 }

@@ -53,7 +53,7 @@ export function InvoicePreview({ invoice, onUpload }: InvoicePreviewProps) {
           )}
         </div>
 
-        {invoice && (
+        {invoice && invoice.source !== "email" && (
           <button
             onClick={() => fileInputRef.current?.click()}
             className="flex items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition hover:bg-zinc-50"
@@ -79,6 +79,15 @@ export function InvoicePreview({ invoice, onUpload }: InvoicePreviewProps) {
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
           />
+        ) : invoice.source === "email" ? (
+          invoice.emailBody ? (
+            <EmailBodyPreview subject={invoice.name} body={invoice.emailBody} />
+          ) : (
+            <EmailAttachmentPreview
+              subject={invoice.name}
+              filename={invoice.emailAttachmentName ?? "attachment"}
+            />
+          )
         ) : invoice.fileUrl ? (
           <FileViewer
             invoice={invoice}
@@ -465,8 +474,103 @@ function TotalRow({
 }
 
 /* -------------------------------------------------------------------------- */
+/*  Email body preview                                                         */
+/* -------------------------------------------------------------------------- */
+
+function EmailBodyPreview({ subject, body }: { subject: string; body: string }) {
+  return (
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-sky-100 bg-sky-50 px-5 py-2.5">
+        <MailIcon className="h-4 w-4 text-sky-500" />
+        <span className="text-xs font-medium text-sky-700">
+          Invoice extracted from email body
+        </span>
+      </div>
+      <div className="flex flex-1 flex-col overflow-y-auto p-6">
+        <p className="mb-4 text-xs font-semibold uppercase tracking-wide text-zinc-400">
+          Email content
+        </p>
+        <pre className="whitespace-pre-wrap break-words font-sans text-sm leading-relaxed text-zinc-700">
+          {body}
+        </pre>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Email attachment preview                                                   */
+/* -------------------------------------------------------------------------- */
+
+function EmailAttachmentPreview({
+  subject,
+  filename,
+}: {
+  subject: string;
+  filename: string;
+}) {
+  return (
+    <div className="flex h-full w-full flex-col overflow-hidden">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-sky-100 bg-sky-50 px-5 py-2.5">
+        <MailIcon className="h-4 w-4 text-sky-500" />
+        <span className="text-xs font-medium text-sky-700">
+          Invoice extracted from email attachment
+        </span>
+      </div>
+      <div className="flex flex-1 items-center justify-center p-6">
+        <div className="flex flex-col items-center gap-4 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sky-50 text-sky-500">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.75"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-7 w-7"
+              aria-hidden
+            >
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="9" y1="13" x2="15" y2="13" />
+              <line x1="9" y1="17" x2="13" y2="17" />
+            </svg>
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-zinc-800">
+              Extracted from attachment
+            </p>
+            <p className="mt-1 max-w-xs rounded-md bg-zinc-100 px-3 py-1.5 font-mono text-xs text-zinc-600">
+              {filename}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
 /*  Icons                                                                      */
 /* -------------------------------------------------------------------------- */
+
+function MailIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.75"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className={className}
+      aria-hidden
+    >
+      <rect x="2" y="4" width="20" height="16" rx="2" />
+      <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+    </svg>
+  );
+}
 
 function DocumentUploadIcon() {
   return (
