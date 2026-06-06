@@ -22,11 +22,13 @@ export function ContactAutocomplete({
   contactName,
   onSelect,
   onCreated,
+  required,
 }: {
   contactId: string;
   contactName: string;
   onSelect: (id: string, name: string) => void;
   onCreated: (id: string, name: string) => void;
+  required?: boolean;
 }) {
   const [inputValue, setInputValue] = useState(contactName);
   const [fetchState, setFetchState] = useState<ContactFetchState>({ status: "idle" });
@@ -115,7 +117,7 @@ export function ContactAutocomplete({
           htmlFor="xero-contact-name"
           className="text-xs font-medium uppercase tracking-wide text-zinc-400"
         >
-          Contact
+          Contact{required && <span className="ml-0.5 text-red-400">*</span>}
         </label>
         <button
           type="button"

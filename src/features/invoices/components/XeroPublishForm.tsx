@@ -31,7 +31,7 @@ interface XeroFormState {
   lineDescription: string;
   accountCode: string;
   taxType: string;
-  quantity: string;
+  total: string;
 }
 
 function buildInitialXeroState(
@@ -51,8 +51,8 @@ function buildInitialXeroState(
     status: "DRAFT",
     lineDescription: get("vendor_name") || invoice.vendor || "",
     accountCode: "",
-    taxType: "NONE",
-    quantity: "1",
+    taxType: "",
+    total: get("total_amount") || "",
   };
 }
 
@@ -64,6 +64,10 @@ function SectionLabel({ children }: { children: React.ReactNode }) {
   );
 }
 
+function RequiredStar() {
+  return <span className="ml-0.5 text-red-400">*</span>;
+}
+
 function XeroTextInput({
   id,
   label,
@@ -71,6 +75,7 @@ function XeroTextInput({
   onChange,
   placeholder,
   type = "text",
+  required,
 }: {
   id: string;
   label: string;
@@ -78,6 +83,7 @@ function XeroTextInput({
   onChange: (v: string) => void;
   placeholder?: string;
   type?: string;
+  required?: boolean;
 }) {
   return (
     <div>
@@ -85,7 +91,7 @@ function XeroTextInput({
         htmlFor={id}
         className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-400"
       >
-        {label}
+        {label}{required && <RequiredStar />}
       </label>
       <input
         id={id}
@@ -109,12 +115,16 @@ function XeroSelect({
   value,
   options,
   onChange,
+  required,
+  includeBlank,
 }: {
   id: string;
   label: string;
   value: string;
   options: readonly string[];
   onChange: (v: string) => void;
+  required?: boolean;
+  includeBlank?: boolean;
 }) {
   return (
     <div>
@@ -122,7 +132,7 @@ function XeroSelect({
         htmlFor={id}
         className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-400"
       >
-        {label}
+        {label}{required && <RequiredStar />}
       </label>
       <select
         id={id}
@@ -133,6 +143,7 @@ function XeroSelect({
           "focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100"
         )}
       >
+        {includeBlank && <option value="">— select —</option>}
         {options.map((opt) => (
           <option key={opt} value={opt}>
             {opt}
@@ -167,13 +178,16 @@ export function XeroPublishForm({
   const setContact = (id: string, name: string) =>
     setForm((prev) => ({ ...prev, contactId: id, contactName: name }));
 
-  const totalAmount =
-    editValues["total_amount"] ??
-    invoice.fields.find((f) => f.key === "total_amount")?.value ??
-    "";
-
-  const unitAmount = parseFloat(totalAmount) || 0;
-  const isValid = form.contactId.trim() && form.date && form.accountCode.trim() && unitAmount > 0;
+  const unitAmount = parseFloat(form.total) || 0;
+  const isValid =
+    form.contactId.trim() &&
+    form.date &&
+    form.dueDate &&
+    form.reference.trim() &&
+    form.lineDescription.trim() &&
+    form.accountCode.trim() &&
+    form.total.trim() &&
+    unitAmount > 0;
 
   async function handlePublish() {
     if (!isValid) return;
@@ -193,7 +207,7 @@ export function XeroPublishForm({
           lineDescription: form.lineDescription,
           accountCode: form.accountCode.trim(),
           taxType: form.taxType,
-          quantity: parseFloat(form.quantity) || 1,
+          quantity: 1,
           unitAmount,
         }),
       });
@@ -250,7 +264,7 @@ export function XeroPublishForm({
         <div className="mb-6 space-y-4">
           <div>
             <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-400">
-              Type
+              Type<RequiredStar />
             </label>
             <div className="flex rounded-lg border border-zinc-200 bg-zinc-50 p-0.5">
               {XERO_TYPES.map((t) => (
@@ -277,6 +291,7 @@ export function XeroPublishForm({
             onCreated={(id, name) => {
               setContact(id, name);
             }}
+            required
           />
           <XeroTextInput
             id="xero-date"
@@ -284,6 +299,7 @@ export function XeroPublishForm({
             type="date"
             value={form.date}
             onChange={set("date")}
+            required
           />
           <XeroTextInput
             id="xero-due-date"
@@ -291,6 +307,7 @@ export function XeroPublishForm({
             type="date"
             value={form.dueDate}
             onChange={set("dueDate")}
+            required
           />
           <XeroTextInput
             id="xero-reference"
@@ -298,6 +315,7 @@ export function XeroPublishForm({
             placeholder="e.g. INV-001"
             value={form.reference}
             onChange={set("reference")}
+            required
           />
           <XeroSelect
             id="xero-status"
@@ -305,10 +323,11 @@ export function XeroPublishForm({
             value={form.status}
             options={XERO_STATUSES}
             onChange={set("status")}
+            required
           />
         </div>
 
-        <SectionLabel>Line Item</SectionLabel>
+        <SectionLabel>Totals</SectionLabel>
         <div className="space-y-4">
           <XeroTextInput
             id="xero-line-description"
@@ -316,18 +335,12 @@ export function XeroPublishForm({
             placeholder="e.g. Invoice from Acme Ltd"
             value={form.lineDescription}
             onChange={set("lineDescription")}
+            required
           />
           <AccountAutocomplete
             value={form.accountCode}
             onChange={set("accountCode")}
-          />
-          <XeroTextInput
-            id="xero-quantity"
-            label="Quantity"
-            type="number"
-            placeholder="1"
-            value={form.quantity}
-            onChange={set("quantity")}
+            required
           />
           <XeroSelect
             id="xero-tax-type"
@@ -335,25 +348,34 @@ export function XeroPublishForm({
             value={form.taxType}
             options={XERO_TAX_TYPES}
             onChange={set("taxType")}
+            includeBlank
           />
           <div>
-            <label className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-400">
-              Unit Amount
+            <label
+              htmlFor="xero-total"
+              className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-400"
+            >
+              Total<RequiredStar />
             </label>
             <div className="relative">
               <span className="pointer-events-none absolute inset-y-0 left-3 flex items-center text-sm text-zinc-400">
                 £
               </span>
               <input
-                type="text"
-                readOnly
-                value={totalAmount}
-                tabIndex={-1}
-                className="w-full cursor-default rounded-lg border border-zinc-200 bg-zinc-100 py-2 pl-7 pr-3 text-sm text-zinc-500 outline-none"
+                id="xero-total"
+                type="number"
+                value={form.total}
+                onChange={(e) => set("total")(e.target.value)}
+                placeholder="0.00"
+                className={cn(
+                  "w-full rounded-lg border border-zinc-200 bg-zinc-50 py-2 pl-7 pr-3 text-sm text-zinc-900 outline-none ring-0 transition",
+                  "focus:border-violet-400 focus:bg-white focus:ring-2 focus:ring-violet-100",
+                  "placeholder:text-zinc-400"
+                )}
               />
             </div>
             <p className="mt-1 text-[11px] text-zinc-400">
-              Pulled from total amount — edit in the Details tab.
+              Pre-filled from the Details tab — override if needed.
             </p>
           </div>
         </div>

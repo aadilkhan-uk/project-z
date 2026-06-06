@@ -21,9 +21,11 @@ type AccountFetchState =
 export function AccountAutocomplete({
   value,
   onChange,
+  required,
 }: {
   value: string;
   onChange: (code: string) => void;
+  required?: boolean;
 }) {
   const [fetchState, setFetchState] = useState<AccountFetchState>({ status: "idle" });
   const [open, setOpen] = useState(false);
@@ -91,7 +93,7 @@ export function AccountAutocomplete({
         htmlFor="xero-account-code"
         className="mb-1.5 block text-xs font-medium uppercase tracking-wide text-zinc-400"
       >
-        Account Code
+        Account Code{required && <span className="ml-0.5 text-red-400">*</span>}
       </label>
       <div className="relative">
         <input
