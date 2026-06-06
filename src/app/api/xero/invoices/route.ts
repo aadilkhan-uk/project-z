@@ -140,7 +140,16 @@ export async function POST(request: NextRequest) {
       data?.message ??
       data?.Detail ??
       "Xero rejected the invoice.";
-    return withCookies(NextResponse.json({ error: message }, { status: xeroRes.status }));
+    const validationErrors: string[] = (data?.Elements ?? []).flatMap(
+      (el: { ValidationErrors?: { Message: string }[] }) =>
+        (el.ValidationErrors ?? []).map((e) => e.Message).filter(Boolean)
+    );
+    return withCookies(
+      NextResponse.json(
+        { error: message, validationErrors: validationErrors.length ? validationErrors : undefined },
+        { status: xeroRes.status }
+      )
+    );
   }
 
   const created = data?.Invoices?.[0];

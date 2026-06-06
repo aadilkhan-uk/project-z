@@ -8,7 +8,13 @@ import { AccountAutocomplete } from "./AccountAutocomplete";
 import { ContactAutocomplete } from "./ContactAutocomplete";
 
 const XERO_STATUSES = ["DRAFT", "SUBMITTED", "AUTHORISED"] as const;
-const XERO_TAX_TYPES = ["NONE", "EXCLUSIVE", "INCLUSIVE", "EXEMPTINPUT", "EXEMPTOUTPUT"] as const;
+const XERO_TAX_TYPE_OPTIONS = [
+  { value: "NONE",         label: "NONE — 0% (no VAT)" },
+  { value: "EXCLUSIVE",    label: "EXCLUSIVE — +20% VAT added on top" },
+  { value: "INCLUSIVE",    label: "INCLUSIVE — 20% VAT already included" },
+  { value: "EXEMPTINPUT",  label: "EXEMPTINPUT — 0% (exempt input)" },
+  { value: "EXEMPTOUTPUT", label: "EXEMPTOUTPUT — 0% (exempt output)" },
+] as const;
 const XERO_TYPES = [
   { value: "ACCPAY", label: "Bill (ACCPAY)" },
   { value: "ACCREC", label: "Sales Invoice (ACCREC)" },
@@ -18,7 +24,7 @@ type PublishState =
   | { status: "idle" }
   | { status: "loading" }
   | { status: "success"; invoiceId: string; invoiceNumber: string }
-  | { status: "error"; message: string };
+  | { status: "error"; message: string; validationErrors?: string[] };
 
 interface XeroFormState {
   type: string;
@@ -51,7 +57,7 @@ function buildInitialXeroState(
     status: "DRAFT",
     lineDescription: get("vendor_name") || invoice.vendor || "",
     accountCode: "",
-    taxType: "",
+    taxType: "NONE",
     total: get("total_amount") || "",
   };
 }
@@ -109,6 +115,8 @@ function XeroTextInput({
   );
 }
 
+type SelectOption = string | { value: string; label: string };
+
 function XeroSelect({
   id,
   label,
@@ -121,7 +129,7 @@ function XeroSelect({
   id: string;
   label: string;
   value: string;
-  options: readonly string[];
+  options: readonly SelectOption[];
   onChange: (v: string) => void;
   required?: boolean;
   includeBlank?: boolean;
@@ -144,11 +152,15 @@ function XeroSelect({
         )}
       >
         {includeBlank && <option value="">— select —</option>}
-        {options.map((opt) => (
-          <option key={opt} value={opt}>
-            {opt}
-          </option>
-        ))}
+        {options.map((opt) => {
+          const optValue = typeof opt === "string" ? opt : opt.value;
+          const optLabel = typeof opt === "string" ? opt : opt.label;
+          return (
+            <option key={optValue} value={optValue}>
+              {optLabel}
+            </option>
+          );
+        })}
       </select>
     </div>
   );
@@ -227,7 +239,11 @@ export function XeroPublishForm({
       const data = await res.json();
 
       if (!res.ok) {
-        setPublishState({ status: "error", message: data.error ?? "Unknown error." });
+        setPublishState({
+          status: "error",
+          message: data.error ?? "Unknown error.",
+          validationErrors: data.validationErrors,
+        });
         return;
       }
 
@@ -354,14 +370,21 @@ export function XeroPublishForm({
             onChange={set("accountCode")}
             required
           />
-          <XeroSelect
-            id="xero-tax-type"
-            label="Tax Type"
-            value={form.taxType}
-            options={XERO_TAX_TYPES}
-            onChange={set("taxType")}
-            includeBlank
-          />
+          <div>
+            <XeroSelect
+              id="xero-tax-type"
+              label="Tax Type"
+              value={form.taxType}
+              options={XERO_TAX_TYPE_OPTIONS}
+              onChange={set("taxType")}
+              includeBlank
+            />
+            {!form.taxType && (
+              <p className="mt-1 text-[11px] text-zinc-400">
+                The tax rate linked to the selected account will be applied. Choose <span className="font-medium text-zinc-500">NONE</span> to apply no tax.
+              </p>
+            )}
+          </div>
           <div>
             <label
               htmlFor="xero-total"
@@ -395,10 +418,21 @@ export function XeroPublishForm({
 
       <div className="shrink-0 border-t border-zinc-100 px-5 py-4 space-y-3">
         {publishState.status === "error" && (
-          <p className="flex items-start gap-1.5 rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
-            <span className="mt-px shrink-0">⚠</span>
-            {publishState.message}
-          </p>
+          <div className="rounded-lg border border-red-100 bg-red-50 px-3 py-2 text-xs text-red-600">
+            <p className="flex items-start gap-1.5">
+              <span className="mt-px shrink-0">⚠</span>
+              {publishState.validationErrors?.length
+                ? "Xero rejected the invoice with the following errors:"
+                : publishState.message}
+            </p>
+            {publishState.validationErrors?.length ? (
+              <ul className="mt-1.5 ml-4 list-disc space-y-0.5">
+                {publishState.validationErrors.map((err, i) => (
+                  <li key={i}>{err}</li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
         )}
         <button
           onClick={handlePublish}
