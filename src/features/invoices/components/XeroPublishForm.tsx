@@ -172,6 +172,18 @@ export function XeroPublishForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [invoice.id]);
 
+  // Backfill the total field if it was empty at mount time (e.g. editValues
+  // arrived after initial render following async extraction).
+  const sourceTotal =
+    editValues["total_amount"] ??
+    invoice.fields.find((f) => f.key === "total_amount")?.value ??
+    "";
+  useEffect(() => {
+    if (sourceTotal) {
+      setForm((prev) => (prev.total ? prev : { ...prev, total: sourceTotal }));
+    }
+  }, [sourceTotal]);
+
   const set = (key: keyof XeroFormState) => (value: string) =>
     setForm((prev) => ({ ...prev, [key]: value }));
 
