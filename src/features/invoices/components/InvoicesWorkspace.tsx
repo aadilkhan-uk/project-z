@@ -181,8 +181,11 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
   const [bannerCount, setBannerCount] = useState(0);
   const [newInvoiceIds, setNewInvoiceIds] = useState<Set<string>>(new Set());
 
-  const pollGmailEmails = useCallback(() => {
-    fetch("/api/gmail/emails")
+  const pollGmailEmails = useCallback((since?: Date) => {
+    const url = since
+      ? `/api/gmail/emails?since=${since.getTime()}`
+      : "/api/gmail/emails";
+    fetch(url)
       .then((res) => {
         setLastSyncedAt(new Date());
         if (!res.ok) return null;
@@ -227,9 +230,27 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
 
   useEffect(() => {
     if (!syncActive) return;
-    const id = setInterval(pollGmailEmails, POLL_INTERVAL_MS);
+    const id = setInterval(() => pollGmailEmails(), POLL_INTERVAL_MS);
     return () => clearInterval(id);
   }, [syncActive, pollGmailEmails]);
+
+  // Browser timers freeze while the machine sleeps or the tab is backgrounded,
+  // so setInterval can silently miss ticks. When the tab becomes visible again,
+  // check how long it's actually been since the last sync and, if we're overdue,
+  // poll immediately for everything that arrived since then.
+  useEffect(() => {
+    if (!syncActive) return;
+    function handleVisible() {
+      if (document.visibilityState !== "visible") return;
+      if (!lastSyncedAt) return;
+      const elapsed = Date.now() - lastSyncedAt.getTime();
+      if (elapsed > POLL_INTERVAL_MS) {
+        pollGmailEmails(lastSyncedAt);
+      }
+    }
+    document.addEventListener("visibilitychange", handleVisible);
+    return () => document.removeEventListener("visibilitychange", handleVisible);
+  }, [syncActive, lastSyncedAt, pollGmailEmails]);
 
   useEffect(() => {
     if (bannerCount === 0) return;

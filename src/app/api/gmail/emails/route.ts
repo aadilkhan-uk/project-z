@@ -40,7 +40,7 @@ export interface GmailEmail {
   extractionAttachmentName?: string;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const cookieStore = await cookies();
   const tokenResult = await getGmailAccessToken(cookieStore);
 
@@ -55,7 +55,14 @@ export async function GET() {
     return res;
   }
 
-  const result = await fetchInvoiceEmails(accessToken);
+  // Optional `since` (epoch milliseconds) lets the client request a wider
+  // catch-up window — e.g. after the machine slept past a poll interval.
+  const sinceParam = new URL(request.url).searchParams.get("since");
+  const parsedSince = sinceParam ? Number(sinceParam) : NaN;
+  const sinceMs =
+    Number.isFinite(parsedSince) && parsedSince > 0 ? parsedSince : undefined;
+
+  const result = await fetchInvoiceEmails(accessToken, sinceMs);
 
   if ("error" in result) {
     return withCookies(
@@ -70,10 +77,15 @@ export async function GET() {
 
 async function fetchInvoiceEmails(
   accessToken: string,
+  sinceMs?: number,
 ): Promise<{emails: GmailEmail[]} | {error: string; status: number}> {
   // Casts a wide net via the Gmail query; we narrow down with our own heuristics below.
-  const fifteenMinutesAgo = Math.floor((Date.now() - 15 * 60 * 1000) / 1000);
-  const query = `after:${fifteenMinutesAgo} has:attachment OR subject:invoice OR subject:bill OR subject:receipt`;
+  // When `sinceMs` is provided (catch-up after sleep), fetch everything since that
+  // moment; otherwise default to the standard 15-minute polling window.
+  const afterSeconds = Math.floor(
+    (sinceMs ?? Date.now() - 15 * 60 * 1000) / 1000,
+  );
+  const query = `after:${afterSeconds} has:attachment OR subject:invoice OR subject:bill OR subject:receipt`;
   const listUrl = `${GMAIL_API}/messages?maxResults=50&q=${encodeURIComponent(query)}`;
 
   const listRes = await fetch(listUrl, {
