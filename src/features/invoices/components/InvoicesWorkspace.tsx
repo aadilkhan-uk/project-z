@@ -180,11 +180,15 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [bannerCount, setBannerCount] = useState(0);
   const [newInvoiceIds, setNewInvoiceIds] = useState<Set<string>>(new Set());
+  const [catchingUp, setCatchingUp] = useState(false);
 
   const pollGmailEmails = useCallback((since?: Date) => {
     const url = since
       ? `/api/gmail/emails?since=${since.getTime()}`
       : "/api/gmail/emails";
+    // A `since` poll is a catch-up after being away — let the user know we're
+    // actively checking the mailbox for everything they missed.
+    if (since) setCatchingUp(true);
     fetch(url)
       .then((res) => {
         setLastSyncedAt(new Date());
@@ -215,6 +219,9 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
       })
       .catch(() => {
         // Polling failures are silent — we'll retry on the next interval.
+      })
+      .finally(() => {
+        if (since) setCatchingUp(false);
       });
   }, []);
 
@@ -299,6 +306,27 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
 
   return (
     <div className="relative flex h-full min-h-0 flex-1 overflow-hidden">
+      {catchingUp && (
+        <div className="pointer-events-none absolute top-4 left-1/2 z-50 -translate-x-1/2">
+          <div className="flex items-center gap-2 rounded-full border border-sky-200 bg-white px-4 py-2 shadow-md shadow-sky-100">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-3.5 w-3.5 shrink-0 animate-spin text-sky-500"
+              aria-hidden
+            >
+              <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+            <span className="text-sm font-medium text-sky-700">
+              You&apos;ve been away — checking your mailbox for new invoices…
+            </span>
+          </div>
+        </div>
+      )}
       {bannerCount > 0 && (
         <div className="pointer-events-none absolute bottom-4 left-1/2 z-50 -translate-x-1/2">
           <div className="flex items-center gap-2 rounded-full border border-sky-200 bg-sky-50 px-4 py-2 shadow-md shadow-sky-100">
