@@ -12,6 +12,7 @@ interface InvoiceListProps {
   collapsed: boolean;
   gmailConnected: boolean;
   syncActive: boolean;
+  lastSyncedAt: Date | null;
   onSelect: (id: string) => void;
   onUpload: (file: File) => void;
   onToggleSync: () => void;
@@ -24,6 +25,7 @@ export function InvoiceList({
   collapsed,
   gmailConnected,
   syncActive,
+  lastSyncedAt,
   onSelect,
   onUpload,
   onToggleSync,
@@ -142,6 +144,11 @@ export function InvoiceList({
               <MailIcon />
               Connect Gmail to sync
             </Link>
+          )}
+          {gmailConnected && lastSyncedAt && (
+            <p className="mt-1.5 px-1 text-[11px] text-zinc-400">
+              Last synced {formatSyncTime(lastSyncedAt)}
+            </p>
           )}
         </div>
       )}
@@ -392,5 +399,13 @@ function formatUploadDate(date: Date): string {
     day: "numeric",
     month: "short",
     year: "numeric",
+  });
+}
+
+function formatSyncTime(date: Date): string {
+  return date.toLocaleTimeString("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
   });
 }

@@ -176,9 +176,13 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
       });
   }, []);
 
+  const [syncActive, setSyncActive] = useState(false);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+
   const pollGmailEmails = useCallback(() => {
     fetch("/api/gmail/emails")
       .then((res) => {
+        setLastSyncedAt(new Date());
         if (!res.ok) return null;
         return res.json();
       })
@@ -202,8 +206,6 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
         // Polling failures are silent — we'll retry on the next interval.
       });
   }, []);
-
-  const [syncActive, setSyncActive] = useState(false);
 
   const handleToggleSync = useCallback(() => {
     if (!gmailConnected) return;
@@ -257,6 +259,7 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
         collapsed={leftCollapsed}
         gmailConnected={gmailConnected}
         syncActive={syncActive}
+        lastSyncedAt={lastSyncedAt}
         onSelect={handleSelect}
         onUpload={handleUpload}
         onToggleSync={handleToggleSync}
