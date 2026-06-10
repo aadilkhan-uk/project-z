@@ -11,6 +11,17 @@ import { InvoicePreview } from "./InvoicePreview";
 
 const POLL_INTERVAL_MS = 15 * 60 * 1000;
 
+export const SYNC_ENABLED_COOKIE = "mailbox_sync_enabled";
+export const LAST_SYNCED_AT_COOKIE = "mailbox_last_synced_at";
+
+// ~68 years. Browsers cap persistent cookies at 400 days, but we intentionally
+// set no shorter expiry of our own so the preference lives as long as possible.
+const COOKIE_MAX_AGE_SECONDS = 2_147_483_647;
+
+function writeForeverCookie(name: string, value: string) {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE_SECONDS}; samesite=lax`;
+}
+
 const INITIAL_INVOICES: Invoice[] =
   process.env.NEXT_PUBLIC_ENABLE_MOCK_DATA === "true" ? MOCK_INVOICES : [];
 
@@ -69,7 +80,15 @@ function gmailEmailToInvoice(email: GmailEmail): Invoice | null {
  * collapse states for both side panels, and the in-progress edit values for
  * the right-hand form. Everything above this in the tree stays a server component.
  */
-export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean }) {
+export function InvoicesWorkspace({
+  gmailConnected,
+  initialSyncEnabled = false,
+  initialLastSyncedAt = null,
+}: {
+  gmailConnected: boolean;
+  initialSyncEnabled?: boolean;
+  initialLastSyncedAt?: number | null;
+}) {
   const [invoices, setInvoices] = useState<Invoice[]>(INITIAL_INVOICES);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [leftCollapsed, setLeftCollapsed] = useState(false);
@@ -176,8 +195,12 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
       });
   }, []);
 
-  const [syncActive, setSyncActive] = useState(false);
-  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [syncActive, setSyncActive] = useState(
+    initialSyncEnabled && gmailConnected
+  );
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(
+    initialLastSyncedAt ? new Date(initialLastSyncedAt) : null
+  );
   const [bannerCount, setBannerCount] = useState(0);
   const [newInvoiceIds, setNewInvoiceIds] = useState<Set<string>>(new Set());
   const [catchingUp, setCatchingUp] = useState(false);
@@ -191,7 +214,9 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
     if (since) setCatchingUp(true);
     fetch(url)
       .then((res) => {
-        setLastSyncedAt(new Date());
+        const now = new Date();
+        setLastSyncedAt(now);
+        writeForeverCookie(LAST_SYNCED_AT_COOKIE, String(now.getTime()));
         if (!res.ok) return null;
         return res.json();
       })
@@ -229,11 +254,27 @@ export function InvoicesWorkspace({ gmailConnected }: { gmailConnected: boolean 
     if (!gmailConnected) return;
     if (syncActive) {
       setSyncActive(false);
+      writeForeverCookie(SYNC_ENABLED_COOKIE, "false");
     } else {
       setSyncActive(true);
+      writeForeverCookie(SYNC_ENABLED_COOKIE, "true");
       pollGmailEmails();
     }
   }, [gmailConnected, syncActive, pollGmailEmails]);
+
+  // On first mount, if the user previously had sync enabled and we have a
+  // recorded last-sync time (both restored from cookies), immediately catch up
+  // on everything that arrived while they were away.
+  const didMountCatchUp = useRef(false);
+  useEffect(() => {
+    if (didMountCatchUp.current) return;
+    didMountCatchUp.current = true;
+    if (syncActive && lastSyncedAt) {
+      pollGmailEmails(lastSyncedAt);
+    }
+    // Intentionally runs once on mount using the cookie-restored values.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     if (!syncActive) return;
